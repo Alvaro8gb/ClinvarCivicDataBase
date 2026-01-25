@@ -16,3 +16,10 @@ CREATE TABLE IF NOT EXISTS clinvar_submission (
     somatic_clinical_impact TEXT,
     oncogenicity TEXT
 );
+
+CREATE TABLE variant_pmid (
+    submission_id INTEGER,
+    pmid INTEGER, 
+    FOREIGN KEY (submission_id) REFERENCES clinvar_submission(submission_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);

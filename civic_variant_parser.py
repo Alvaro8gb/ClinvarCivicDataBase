@@ -1,3 +1,6 @@
+#!/usr/bin/env python3.8
+# -*- coding: utf-8 -*-
+
 import re
 import sys
 import gzip
@@ -5,11 +8,6 @@ import gzip
 
 from db_libs.read_sql import load_clinvar_table_defs
 from db_libs.utils_sqlite import open_db
-from db_libs.utils import clean_column_values
-
-
-DDL_TABLE = "schemas/clinvar_variant_tables.sql"
-
 
 def parse_header(line):
     """Parse the header line and return a mapping of column names to indices and VCF coordinate info."""
@@ -24,6 +22,11 @@ def parse_header(line):
         ref_allele_col = header_mapping["ReferenceAllele"]
         alt_allele_col = header_mapping["AlternateAllele"]
     return header_mapping, ref_allele_col, alt_allele_col
+
+
+def clean_column_values(column_values):
+    """Replace empty strings or '-' with None."""
+    return [None if not v or v == "-" else v for v in column_values]
 
 
 def insert_variant(cur, header_mapping, column_values, ref_allele_col, alt_allele_col):
@@ -75,26 +78,26 @@ def insert_review_status(cur, ventry_id, status_str):
 
 def insert_variant_phenotypes(cur, ventry_id, variant_pheno_str, allele_id, assembly, line):
     """Insert variant phenotypes."""
-
+    
     if variant_pheno_str is not None:
-
+        
         variant_pheno_list = re.split(r"[;|]", variant_pheno_str)
         prep_pheno = []
-
+        
         for phen_group_id, variant_pheno in enumerate(variant_pheno_list):
-
+            
             if not variant_pheno:
                 continue
-
+            
             if re.search("^[1-9][0-9]* conditions$", variant_pheno):
-                # print(f"INFO: Long PhenotypeIDs {allele_id} {assembly}: {variant_pheno}")
+                #print(f"INFO: Long PhenotypeIDs {allele_id} {assembly}: {variant_pheno}")
                 continue
-
+            
             variant_annots = re.split(r",", variant_pheno)
-
+            
             for variant_annot in variant_annots:
                 phen = variant_annot.split(":")
-
+                
                 if len(phen) > 1:
                     phen_ns, phen_id = phen[0:2]
                     prep_pheno.append(
@@ -102,7 +105,7 @@ def insert_variant_phenotypes(cur, ventry_id, variant_pheno_str, allele_id, asse
                 elif variant_annot != "na":
                     print(
                         f"DEBUG: {allele_id} {assembly} {variant_annot}\n\t{variant_pheno_str}\n\t{line}", file=sys.stderr)
-
+        
         cur.executemany("""
             INSERT INTO variant_phenotypes(ventry_id, phen_group_id, phen_ns, phen_id) VALUES(?,?,?,?)
         """, prep_pheno)
@@ -110,14 +113,14 @@ def insert_variant_phenotypes(cur, ventry_id, variant_pheno_str, allele_id, asse
 
 def store_clinvar_file(db, clinvar_file):
     with gzip.open(clinvar_file, "rt", encoding="utf-8") as cf:
-
+        
         header_mapping = None
         cur = db.cursor()
-
+        
         first_line = next(cf)
         header_mapping, ref_allele_col, alt_allele_col = parse_header(
-            first_line)
-
+                    first_line)
+        
         with db:
             for i, line in enumerate(cf):
 
@@ -132,13 +135,13 @@ def store_clinvar_file(db, clinvar_file):
                 column_values = clean_column_values(re.split(r"\t", wline))
                 ventry_id = insert_variant(
                     cur, header_mapping, column_values, ref_allele_col, alt_allele_col)
-
+                
                 significance = column_values[header_mapping["ClinicalSignificance"]]
                 insert_clinical_significance(cur, ventry_id, significance)
-
+                
                 status_str = column_values[header_mapping["ReviewStatus"]]
                 insert_review_status(cur, ventry_id, status_str)
-
+                
                 variant_pheno_str = column_values[header_mapping["PhenotypeIDS"]]
                 allele_id = column_values[header_mapping["AlleleID"]]
                 assembly = column_values[header_mapping["Assembly"]]
@@ -149,24 +152,27 @@ def store_clinvar_file(db, clinvar_file):
 
 
 if __name__ == '__main__':
-
+    
     if len(sys.argv) < 3:
         print("Usage: {0} {{database_file}} {{compressed_clinvar_file}}".format(
             sys.argv[0]), file=sys.stderr)
-
+        
         sys.exit(1)
 
+    # Only the first and second parameters are considered
     db_file = sys.argv[1]
     clinvar_file = sys.argv[2]
 
     # Load Tables Schemas
-    clinvar_tables = load_clinvar_table_defs(DDL_TABLE)
+    clinvar_tables = load_clinvar_table_defs("schemas/clinvar_variant_tables.sql")
 
-    # Create or open the database
+    # First, let's create or open the database
     db = open_db(db_file, clinvar_tables)
 
     try:
-        # Insert
+        # Second
         store_clinvar_file(db, clinvar_file)
     finally:
         db.close()
+
+

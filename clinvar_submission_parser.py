@@ -4,38 +4,19 @@
 import re
 import sys
 import gzip
-from datetime import datetime
 
 
-from db_libs.read_sql import load_clinvar_table_defs
 from db_libs.utils_sqlite import open_db
-from db_libs.utils import clean_column_values
+from db_libs.read_sql import load_clinvar_table_defs
+from db_libs.utils import is_header_line, parse_header, clean_column_values, text2date
 
 
-def is_header_line(line, required_columns=["VariationID", "ClinicalSignificance"]):
-    """
-    Detect if a line is the header by checking for required column names
-    """
-    # Remove leading '#' and whitespace, then split by tab
-    columns = line.lstrip("#").strip().split("\t")
-    return all(col in columns for col in required_columns)
+DDL_TABLE = "schemas/clinvar_submission.sql"
 
 
-def parse_header(line):
-    """Parse the header line and return a mapping of column names to indices and VCF coordinate info."""
-    line = line.lstrip("#").rstrip("\n")
-    column_names = re.split(r"\t", line)
-    header_mapping = {name: idx for idx, name in enumerate(column_names)}
-
-    print("Header mapping loaded", header_mapping)
-
-    return header_mapping
-
-
-def date_parser(date: str):
-    if not date:
-        return None
-    return datetime.strptime(date.strip(), "%b %d, %Y").strftime("%Y-%m-%d")
+def extract_pmids(text: str):
+    pmids = re.findall(r'PMID:\s*(\d+)', text)
+    return set(pmids)
 
 
 def insert_submission(cur, header_mapping, column_values):
@@ -43,7 +24,8 @@ def insert_submission(cur, header_mapping, column_values):
 
     variation_id = column_values[header_mapping["VariationID"]]
     clinical_significance = column_values[header_mapping["ClinicalSignificance"]]
-    date_last_evaluated = date_parser(column_values[header_mapping["DateLastEvaluated"]])
+    date_last_evaluated = text2date(
+        column_values[header_mapping["DateLastEvaluated"]])
     description = column_values[header_mapping["Description"]]
     submitted_phenotype_info = column_values[header_mapping["SubmittedPhenotypeInfo"]]
     reported_phenotype_info = column_values[header_mapping["ReportedPhenotypeInfo"]]
@@ -70,6 +52,19 @@ def insert_submission(cur, header_mapping, column_values):
         origin_counts, submitter, scv, submitted_gene_symbol, explanation_of_interpretation,
         somatic_clinical_impact, oncogenicity
     ))
+
+    submission_id = cur.lastrowid
+
+    if description:
+        pmids = extract_pmids(description)
+
+        if pmids:
+            for pmid in pmids:
+                cur.execute("""
+                    INSERT INTO variant_pmid (
+                        submission_id, pmid
+                    ) VALUES (?, ?)
+                """, (submission_id, pmid))
 
 
 def store_clinvar_file(db, clinvar_file):
@@ -115,7 +110,7 @@ if __name__ == '__main__':
     clinvar_file = sys.argv[2]
 
     # Load Tables Schemas
-    clinvar_tables = load_clinvar_table_defs("schemas/clinvar_subission.sql")
+    clinvar_tables = load_clinvar_table_defs(DDL_TABLE)
 
     # First, let's create or open the database
     db = open_db(db_file, clinvar_tables)

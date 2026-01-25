@@ -8,18 +8,10 @@ import gzip
 
 from db_libs.read_sql import load_clinvar_table_defs
 from db_libs.utils_sqlite import open_db
-from db_libs.utils import clean_column_values
+from db_libs.utils import clean_column_values, parse_header
 
+DDL_TABLE = "schemas/clinvar_gene.sql"
 
-def parse_header(line):
-    """Parse the header line and return a mapping of column names to indices and VCF coordinate info."""
-    line = line.lstrip("#").rstrip("\n")
-    column_names = re.split(r"\t", line)
-    header_mapping = {name: idx for idx, name in enumerate(column_names)}
-
-    print("Header mapping loaded", header_mapping)
-
-    return header_mapping
 
 def insert_gene(cur, header_mapping, column_values):
     """Insert a gene row and return the new gene_id."""
@@ -82,14 +74,13 @@ if __name__ == '__main__':
         
         sys.exit(1)
 
-    # Only the first and second parameters are considered
     db_file = sys.argv[1]
     clinvar_file = sys.argv[2]
 
     # Load Tables Schemas
-    clinvar_tables = load_clinvar_table_defs("schemas/clinvar_gene.sql")
+    clinvar_tables = load_clinvar_table_defs(DDL_TABLE)
 
-    # First, let's create or open the database
+    # Create or open the database
     db = open_db(db_file, clinvar_tables)
 
     try:
