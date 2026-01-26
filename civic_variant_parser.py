@@ -1,6 +1,5 @@
 import re
 import sys
-import gzip
 
 
 from db_libs.read_sql import load_clinvar_table_defs
@@ -8,7 +7,6 @@ from db_libs.utils_sqlite import open_db
 from db_libs.utils import clean_column_values, parse_header
 
 DDL_TABLE = "schemas/civiv_variant.sql"
-
 
 def insert_variant(cur, variant_id:int, header_mapping, column_values):
     """Insert a variant row and return the new ventry_id."""

@@ -8,7 +8,7 @@ from db_libs.utils_sqlite import open_db
 from db_libs.utils import clean_column_values
 
 
-DDL_TABLE = "schemas/clinvar_variant_tables.sql"
+DDL_TABLE = "schemas/clinvar_variant.sql"
 
 
 def parse_header(line):
@@ -40,17 +40,17 @@ def insert_variant(cur, header_mapping, column_values, ref_allele_col, alt_allel
     ref_allele = column_values[ref_allele_col]
     alt_allele = column_values[alt_allele_col]
     cytogenetic = column_values[header_mapping["Cytogenetic"]]
-    variation_id = int(column_values[header_mapping["VariationID"]])
+    variant_id = int(column_values[header_mapping["VariationID"]])
     gene_id = column_values[header_mapping["GeneID"]]
     gene_symbol = column_values[header_mapping["GeneSymbol"]]
     hgnc_id = column_values[header_mapping["HGNC_ID"]]
     cur.execute("""
         INSERT INTO variant(
-            allele_id, name, type, dbsnp_id, phenotype_list, gene_id, gene_symbol, hgnc_id,
-            assembly, chro, chro_start, chro_stop, ref_allele, alt_allele, cytogenetic, variation_id)
+            variant_id, allele_id, name, type, dbsnp_id, phenotype_list, gene_id, gene_symbol, hgnc_id,
+            assembly, chro, chro_start, chro_stop, ref_allele, alt_allele, cytogenetic)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    """, (allele_id, name, allele_type, dbSNP_id, phenotype_list, gene_id, gene_symbol, hgnc_id,
-          assembly, chro, chro_start, chro_stop, ref_allele, alt_allele, cytogenetic, variation_id))
+    """, (variant_id, allele_id, name, allele_type, dbSNP_id, phenotype_list, gene_id, gene_symbol, hgnc_id,
+          assembly, chro, chro_start, chro_stop, ref_allele, alt_allele, cytogenetic))
     
     return cur.lastrowid
 
@@ -123,7 +123,7 @@ def store_clinvar_file(db, clinvar_file):
         with db:
             for i, line in enumerate(cf):
 
-                if i % 1000 == 0:
+                if i % 10_000 == 0:
                     print(f"Processed {i} lines...")
 
                 wline = line.rstrip("\n")

@@ -111,11 +111,11 @@ if __name__ == '__main__':
     # Load Tables Schemas
     clinvar_tables = load_clinvar_table_defs(DDL_TABLE)
 
-    # First, let's create or open the database
+    # Create or open the database
     db = open_db(db_file, clinvar_tables)
 
     try:
-        # Second
+        # Insert
         store_clinvar_file(db, clinvar_file)
     finally:
         db.close()

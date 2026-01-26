@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS gene (
 
 CREATE TABLE IF NOT EXISTS variant (
     ventry_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    variant_id INTEGER NOT NULL,
     allele_id INTEGER NOT NULL,
     name TEXT,
     type TEXT NOT NULL,
@@ -21,8 +22,7 @@ CREATE TABLE IF NOT EXISTS variant (
     chro_stop INTEGER NOT NULL,
     ref_allele TEXT,
     alt_allele TEXT,
-    cytogenetic TEXT,
-    variation_id INTEGER NOT NULL
+    cytogenetic TEXT
 ) STRICT;
 
 CREATE INDEX coords_variant ON variant(chro_start, chro_stop, chro);

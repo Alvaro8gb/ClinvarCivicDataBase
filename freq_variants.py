@@ -1,7 +1,6 @@
+import sys
 import sqlite3
 import pandas as pd
-
-CONN = sqlite3.connect('./dumps/clinvar_variant.db')
 
 
 CHR_DATA_BP = {
@@ -14,7 +13,7 @@ QUERY = """
     SELECT 
         assembly, 
         chro, 
-        COUNT(*) AS n_variants
+        COUNT(DISTINCT(variant_id)) AS n_variants
     FROM variant
     WHERE chro IN ('1', '22', 'X') 
     AND (assembly = 'GRCh37' OR assembly = 'GRCh38')
@@ -24,16 +23,23 @@ QUERY = """
 
 
 if __name__ == '__main__': 
-    print("Calculate variant freqs...")
 
-    
+    if len(sys.argv) < 2:
+        print("Usage: {0} {{database_file}}".format(
+            sys.argv[0]), file=sys.stderr)
+
+        sys.exit(1)
+
+    db_path = sys.argv[1]
+    conn = sqlite3.connect(db_path)
+
     df_lengths = pd.DataFrame(CHR_DATA_BP)
     
     print("Chromosome length by assembly")
     print(df_lengths.to_markdown(index=False))
 
     
-    df_freq_variantes = pd.read_sql_query(QUERY, CONN)
+    df_freq_variantes = pd.read_sql_query(QUERY, conn)
 
     print("Variants per chro and assembly")
     print(df_freq_variantes.to_markdown(index=False))
