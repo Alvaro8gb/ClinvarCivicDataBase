@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS clinvar_submission (
     submission_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    variation_id INTEGER,
+    variant_id INTEGER,
     clinical_significance TEXT,
     date_last_evaluated DATE,
     description TEXT,

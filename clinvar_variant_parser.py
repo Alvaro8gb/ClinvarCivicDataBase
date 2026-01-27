@@ -29,6 +29,7 @@ def parse_header(line):
 def insert_variant(cur, header_mapping, column_values, ref_allele_col, alt_allele_col):
     """Insert a variant row and return the new ventry_id."""
     allele_id = int(column_values[header_mapping["AlleleID"]])
+    variant_id = int(column_values[header_mapping["VariationID"]])
     name = column_values[header_mapping["Name"]]
     allele_type = column_values[header_mapping["Type"]]
     dbSNP_id = column_values[header_mapping["RS# (dbSNP)"]]
@@ -40,7 +41,6 @@ def insert_variant(cur, header_mapping, column_values, ref_allele_col, alt_allel
     ref_allele = column_values[ref_allele_col]
     alt_allele = column_values[alt_allele_col]
     cytogenetic = column_values[header_mapping["Cytogenetic"]]
-    variant_id = int(column_values[header_mapping["VariationID"]])
     gene_id = column_values[header_mapping["GeneID"]]
     gene_symbol = column_values[header_mapping["GeneSymbol"]]
     hgnc_id = column_values[header_mapping["HGNC_ID"]]
@@ -74,12 +74,14 @@ def insert_review_status(cur, ventry_id, status_str):
         """, prep_status)
 
 
-def insert_variant_phenotypes(cur, ventry_id, variant_pheno_str, allele_id, assembly, line):
+def insert_variant_phenotypes(cur, ventry_id, variant_pheno:str, allele_id, assembly, line):
     """Insert variant phenotypes."""
 
-    if variant_pheno_str is not None:
+    if variant_pheno is not None:
 
-        variant_pheno_list = re.split(r"[;|]", variant_pheno_str)
+        variant_pheno = variant_pheno.replace("MONDO:MONDO:", "MONDO:") # Improvent
+
+        variant_pheno_list = re.split(r"[;|]", variant_pheno)
         prep_pheno = []
 
         for phen_group_id, variant_pheno in enumerate(variant_pheno_list):
@@ -102,7 +104,7 @@ def insert_variant_phenotypes(cur, ventry_id, variant_pheno_str, allele_id, asse
                         (ventry_id, phen_group_id, phen_ns, phen_id))
                 elif variant_annot != "na":
                     print(
-                        f"DEBUG: {allele_id} {assembly} {variant_annot}\n\t{variant_pheno_str}\n\t{line}", file=sys.stderr)
+                        f"DEBUG: {allele_id} {assembly} {variant_annot}\n\t{variant_pheno}\n\t{line}", file=sys.stderr)
 
         cur.executemany("""
             INSERT INTO variant_phenotypes(ventry_id, phen_group_id, phen_ns, phen_id) 
@@ -123,7 +125,7 @@ def store_clinvar_file(db, clinvar_file):
         with db:
             for i, line in enumerate(cf):
 
-                if i % 10_000 == 0:
+                if i % 100_000 == 0:
                     print(f"Processed {i} lines...")
 
                 wline = line.rstrip("\n")
@@ -141,14 +143,14 @@ def store_clinvar_file(db, clinvar_file):
                 status_str = column_values[header_mapping["ReviewStatus"]]
                 insert_review_status(cur, ventry_id, status_str)
 
-                variant_pheno_str = column_values[header_mapping["PhenotypeIDS"]]
+                variant_pheno = column_values[header_mapping["PhenotypeIDS"]]
                 allele_id = column_values[header_mapping["AlleleID"]]
                 assembly = column_values[header_mapping["Assembly"]]
+                
                 insert_variant_phenotypes(
-                    cur, ventry_id, variant_pheno_str, allele_id, assembly, line)
+                    cur, ventry_id, variant_pheno, allele_id, assembly, line)
 
         cur.close()
-
 
 if __name__ == '__main__':
 

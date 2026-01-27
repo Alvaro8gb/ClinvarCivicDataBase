@@ -4,7 +4,7 @@ from datetime import datetime
 
 def clean_column_values(column_values):
     """Replace empty strings or '-' with None."""
-    return [None if not v or v == "-" else v for v in column_values]
+    return [None if not v or v == "-" or v == "na" else v for v in column_values]
 
 
 def is_header_line(line:str, required_columns=["VariationID", "ClinicalSignificance"]):

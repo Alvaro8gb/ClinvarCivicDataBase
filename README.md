@@ -7,23 +7,23 @@ wget https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/archive/gene_specifi
 wget https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/archive/submission_summary_2025-01.txt.gz
 
 
-wget https://civicdb.org/downloads/nightly/nightly-VariantSummaries.tsv
+wget https://civicdb.org/downloads/01-Jan-2026/01-Jan-2026-VariantSummaries.tsv
 ```
 
 ```bash
-python clinvar_variant_parser.py  ./dumps/clinvar_variant.db data/variant_summary_2025-01.txt.gz
+python clinvar_variant_parser.py  ./dumps/clinvar_variant.db data/clinvar/variant_summary_2025-01.txt.gz
 ```
 
 ```bash
-python clinvar_gene_parser.py dumps/clinvar_gene.db data/gene_specific_summary_2025-01.txt.gz
+python clinvar_gene_parser.py dumps/clinvar_gene.db data/clinvar/gene_specific_summary_2025-01.txt.gz
 ```
 
 ## Clinvar
 
 
-### Qué significa gene_id = -1 ?
+### Qué significa `gene_id = -1` ?
 
-Indica que la variante NO está asignada de forma inequívoca a un gen específico.
+> Indica que la variante **no está asignada de forma inequívoca a un gen específico.**
 
 - Variante intergénica: Está entre genes, no dentro de uno conocido.
 
@@ -32,20 +32,28 @@ Indica que la variante NO está asignada de forma inequívoca a un gen específi
 - Deleciones/duplicaciones que abarcan varios genes o regiones amplias
 - Información incompleta o ambigua en ClinVar
 
+
+
+### Qué significa `position_vcf = -1` y `ref_allele = na`
+
+> indica que **no puede representarse como una variante genómica estándar en formato VCF**.
+
+Esto ocurre porque:
+
+* ClinVar **no puede asignar una posición genómica única**
+* No es una **SNV ni un indel simple**
+* No se puede definir **REF/ALT**
+
+Suele pasar con:
+
+* Variantes descritas solo a nivel **proteico o cDNA**
+* Variantes **estructurales o complejas**
+* Grandes deleciones/duplicaciones o descripciones antiguas
+
+
 ## Queries
 
 ### 1. ¿Cuántas variantes están relacionadas con el gen P53 tomando como referencia el ensamblaje GRCh38 en ClinVar y en CIViC?
-
-```sql
-SELECT 
-	COUNT(DISTINCT(variation_id)),
-	COUNT(variation_id), 
-	COUNT(DISTINCT(allele_id)),
-	COUNT(allele_id)
-FROM variant
-WHERE assembly = 'GRCh38';
-```
-3058778	3059494	3058778	3059494
 
 
 ```sql
@@ -59,7 +67,8 @@ WHERE
 
 ```
 
-
+CLinvar: 4601
+Civic: 0
 
 ### 2. ¿Qué cambio del tipo “single nucleotide variant” es más frecuente, el de una Guanina por una Adenina, o el una Guanina por una Timina? Usad las anotaciones basadas en el ensamblaje GRCh37 para cuantificar y proporcionar los números totales, tanto para ClinVar como para CIViC.
 
@@ -113,7 +122,7 @@ ORDER BY n_variants DESC;
 
 SELECT 
 	gene_symbol,
-	COUNT(*) as freq
+	COUNT(DISTINCT(variant_id)) as n_variants
 FROM variant
 WHERE assembly = 'GRCh37' AND 
 	type IN (
@@ -122,7 +131,7 @@ WHERE assembly = 'GRCh37' AND
       'Deletion'
       )
 GROUP BY gene_symbol
-ORDER BY freq DESC;
+ORDER BY n_variants DESC;
 ```
 
 |gene_symbol|freq|
@@ -134,25 +143,34 @@ ORDER BY freq DESC;
 
 ### 4. ¿Cuál es la deleción más común en el cáncer hereditario de mama en CIViC? ¿Y en ClinVar? Por favor, incluye en la respuesta además en qué genoma de referencia, el número de veces que ocurre, el alelo de referencia y el observado.
 
+https://www.ebi.ac.uk/ols4/ontologies/mondo
+
+'hereditary breast carcinoma': https://www.ebi.ac.uk/ols4/ontologies/mondo/classes/http%253A%252F%252Fpurl.obolibrary.org%252Fobo%252FMONDO_0016419
+
 ```sql
 
 SELECT 
-	v.variation_id,
-	COUNT(*) AS freq,
+	COUNT(DISTINCT(variant_id)) AS n_variants,
 	v.ref_allele, 
 	v.alt_allele
 FROM variant v
-JOIN clinical_sig c ON v.ventry_id = c.ventry_id
+JOIN variant_phenotypes p ON v.ventry_id = p.ventry_id
 WHERE 
 	v.type = 'Deletion' AND
 	v.assembly = 'GRCh37' AND 
-	c.significance IN ('Pathogenic', 'Likely pathogenic')
-GROUP BY v.variation_id, v.ref_allele, v.alt_allele
-ORDER BY freq DESC;
+	p.phen_id = '0016419' AND p.phen_ns = 'MONDO' -- hereditary breast carcinoma 
+GROUP BY v.ref_allele, v.alt_allele
+ORDER BY n_variants DESC;
 ```
 
-falta añadir cancer hereditario de mama
-
+TOP 5:
+|n_variants|ref_allele|alt_allele|
+|----------|----------|----------|
+|293|na|na|
+|222|CT|C|
+|186|CA|C|
+|166|AG|A|
+|160|AT|A|
 
 ### 5. Ver el identificador de gen y las coordenadas de las variantes de ClinVar del ensamblaje GRCh38 relacionadas con el fenotipo del Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins.
 
@@ -205,8 +223,7 @@ WHERE
 ```sql
 
 SELECT 
-	COUNT(DISTINCT(variation_id)), 
-	COUNT(*)
+	COUNT(DISTINCT(variant_id)) 
 FROM variant
 WHERE
 	assembly = 'GRCh37' AND 
@@ -215,13 +232,16 @@ WHERE
 	chro_stop <= 20000000;
 ```
 
+Clinvar: 32
+
+
 
 ### 8. Calcular el número de variantes de ClinVar para los cuáles se haya provisto entradas de significancia clínica que no sean inciertas (“Uncertain significance”), del ensamblaje GRCh38, en aquellas variantes relacionadas con BRCA2.
 
 ```sql
 
 SELECT 
-	COUNT(DISTINCT(v.variation_id)) as n_variants
+	COUNT(DISTINCT(v.variant_id))
 FROM variant v
 JOIN clinical_sig c ON v.ventry_id = c.ventry_id
 WHERE
@@ -231,25 +251,27 @@ WHERE
 
 ```
 
+Clinvar: 3973
+
 
 
 ### 9. Obtener el listado de pubmed_ids de ClinVar relacionados con las variantes del ensamblaje GRCh38 relacionadas con el fenotipo del glioblastoma.
 
 ```sql
 
-ATTACH DATABASE 'clinvar_variant.db' as variants;
+ATTACH DATABASE 'clinvar_submission.db' as subs;
 
 
 SELECT 
     v.ventry_id,
-    v.variation_id,
+    v.variant_id ,
     s.submission_id,
     p.pmid, 
     v.phenotype_list
-FROM variants.variant v
-JOIN clinvar_submission s 
-    ON v.variation_id = s.variation_id 
- JOIN variant_pmid p
+FROM variant v
+JOIN subs.clinvar_submission s 
+    ON v.variant_id = s.variant_id 
+ JOIN subs.variant_pmid p
     ON s.submission_id = p.submission_id 
 WHERE 
 	v.assembly = 'GRCh38' AND 
@@ -261,20 +283,27 @@ WHERE
 
 SELECT 
 	v.ventry_id,
-    v.variation_id,
+    v.variant_id,
     s.submission_id,
     p.pmid, 
     v.phenotype_list
 FROM (
-    SELECT * FROM variants.variant 
+    SELECT * FROM variant 
     WHERE assembly = 'GRCh38' AND 
     phenotype_list LIKE '%glioblastoma%'
-    LIMIT 100
+    LIMIT 1000
 ) v
-JOIN clinvar_submission s ON v.variation_id = s.variation_id 
-JOIN variant_pmid p ON s.submission_id = p.submission_id
-
+JOIN subs.clinvar_submission s ON v.variant_id = s.variant_id 
+JOIN subs.variant_pmid p ON s.submission_id = p.submission_id
 ```
+
+
+|ventry_id|variant_id|submission_id|pmid|phenotype_list|
+|---------|----------|-------------|----|--------------|
+|171983|156444|405891|24049096|Glioblastoma multiforme, somatic&#124;Metaphyseal chondromatosis with D-2-hydroxyglutaric aciduria&#124;Glioma susceptibility 1&#124;Enchondromatosis&#124;Neoplasm&#124;Metaphyseal chondromatosis&#124;not provided|
+|849955|555284|1418920|9054948|Ataxia-telangiectasia syndrome&#124;Glioblastoma&#124;not provided&#124;Familial cancer of breast|
+|849955|555284|1418920|23807571|Ataxia-telangiectasia syndrome&#124;Glioblastoma&#124;not provided&#124;Familial cancer of breast|
+
 
 ### 10. Obtener el número de variantes del cromosoma 1 y calcular la frecuencia de mutaciones de este cromosoma, tanto para GRCh37 como para GRCh38. ¿Es esta frecuencia mayor que la del cromosoma 22? ¿Y si lo comparamos con el cromosoma X? 
 
@@ -322,7 +351,9 @@ Variants per chro and assembly
 | GRCh38     | 1      |       269954 |
 | GRCh38     | 22     |        67166 |
 | GRCh38     | X      |       116860 |
+
 Frequency of mutations
+
 | Chromosome   |   Variants_GRCh37 |   Frequency_GRCh37 |   Variants_GRCh38 |   Frequency_GRCh38 |
 |:-------------|------------------:|-------------------:|------------------:|-------------------:|
 | 1            |            273635 |        0.00109783  |            269954 |        0.00108434  |
@@ -342,6 +373,8 @@ Variants per chro and assembly
 | GRCh37     | 22     |           14 |
 | GRCh37     | X      |           22 |
 | GRCh38     | 1      |            1 |
+
+
 Frequency of mutations
 | Chromosome   |   Variants_GRCh37 |   Frequency_GRCh37 |   Variants_GRCh38 |   Frequency_GRCh38 |
 |:-------------|------------------:|-------------------:|------------------:|-------------------:|

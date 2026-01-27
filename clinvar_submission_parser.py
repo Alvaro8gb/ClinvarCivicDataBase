@@ -21,7 +21,7 @@ def extract_pmids(text: str):
 def insert_submission(cur, header_mapping, column_values):
     """Insert a submission row and return the new id."""
 
-    variation_id = column_values[header_mapping["VariationID"]]
+    variant_id = int(column_values[header_mapping["VariationID"]])
     clinical_significance = column_values[header_mapping["ClinicalSignificance"]]
     date_last_evaluated = text2date(
         column_values[header_mapping["DateLastEvaluated"]])
@@ -40,13 +40,13 @@ def insert_submission(cur, header_mapping, column_values):
 
     cur.execute("""
         INSERT INTO clinvar_submission (
-            variation_id, clinical_significance, date_last_evaluated, description,
+            variant_id, clinical_significance, date_last_evaluated, description,
             submitted_phenotype_info, reported_phenotype_info, review_status, collection_method,
             origin_counts, submitter, scv, submitted_gene_symbol, explanation_of_interpretation,
             somatic_clinical_impact, oncogenicity
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        variation_id, clinical_significance, date_last_evaluated, description,
+        variant_id, clinical_significance, date_last_evaluated, description,
         submitted_phenotype_info, reported_phenotype_info, review_status, collection_method,
         origin_counts, submitter, scv, submitted_gene_symbol, explanation_of_interpretation,
         somatic_clinical_impact, oncogenicity
@@ -86,7 +86,7 @@ def store_clinvar_file(db, clinvar_file):
                 if wline.startswith('#'):
                     continue  # skip comment lines
 
-                if i % 10_000 == 0:
+                if i % 100_000 == 0:
                     print(f"Processed {i} lines...")
 
                 column_values = clean_column_values(re.split(r"\t", wline))
