@@ -5,7 +5,7 @@ import gzip
 
 from db_libs.read_sql import load_clinvar_table_defs
 from db_libs.utils_sqlite import open_db
-from db_libs.utils import clean_column_values
+from db_libs.utils import clean_row_values, none_for_unique
 
 
 DDL_TABLE = "schemas/clinvar_variant.sql"
@@ -26,33 +26,57 @@ def parse_header(line):
     return header_mapping, ref_allele_col, alt_allele_col
 
 
-def insert_variant(cur, header_mapping, column_values, ref_allele_col, alt_allele_col):
+def insert_gene(cur, gene_symbol, gene_id, hgnc_id):
+    if gene_symbol is not None: 
+
+        hgnc_id = none_for_unique(hgnc_id)
+        gene_id = int(none_for_unique(gene_id))
+
+        cur.execute("""
+            INSERT INTO gene(
+                gene_symbol,
+                gene_id,
+                hgnc_id)
+            VALUES(?,?,?)
+        """, (gene_symbol, gene_id, hgnc_id))
+
+
+def insert_variant(cur, header_mapping, row_values, ref_allele_col, alt_allele_col):
     """Insert a variant row and return the new ventry_id."""
-    allele_id = int(column_values[header_mapping["AlleleID"]])
-    variant_id = int(column_values[header_mapping["VariationID"]])
-    name = column_values[header_mapping["Name"]]
-    allele_type = column_values[header_mapping["Type"]]
-    dbSNP_id = column_values[header_mapping["RS# (dbSNP)"]]
-    phenotype_list = column_values[header_mapping["PhenotypeList"]]
-    assembly = column_values[header_mapping["Assembly"]]
-    chro = column_values[header_mapping["Chromosome"]]
-    chro_start = column_values[header_mapping["Start"]]
-    chro_stop = column_values[header_mapping["Stop"]]
-    ref_allele = column_values[ref_allele_col]
-    alt_allele = column_values[alt_allele_col]
-    cytogenetic = column_values[header_mapping["Cytogenetic"]]
-    gene_id = column_values[header_mapping["GeneID"]]
-    gene_symbol = column_values[header_mapping["GeneSymbol"]]
-    hgnc_id = column_values[header_mapping["HGNC_ID"]]
+    variant_id = int(row_values[header_mapping["VariationID"]])
+    allele_id = int(row_values[header_mapping["AlleleID"]])
+    variant_name = row_values[header_mapping["Name"]]
+    variant_type = row_values[header_mapping["Type"]]
+    dbsnp_id = row_values[header_mapping["RS# (dbSNP)"]]
+    phenotype_list = row_values[header_mapping["PhenotypeList"]]
+    gene_symbol = row_values[header_mapping["GeneSymbol"]]
+    assembly = row_values[header_mapping["Assembly"]]
+    chro = none_for_unique(row_values[header_mapping["Chromosome"]])
+    chro_start = int(none_for_unique(row_values[header_mapping["Start"]]))
+    chro_stop = int(none_for_unique(row_values[header_mapping["Stop"]]))
+    ref_allele = row_values[ref_allele_col]
+    alt_allele = row_values[alt_allele_col]
+    cytogenetic = row_values[header_mapping["Cytogenetic"]]
+    
     cur.execute("""
-        INSERT INTO variant(
-            variant_id, allele_id, name, type, dbsnp_id, phenotype_list, gene_id, gene_symbol, hgnc_id,
+        INSERT INTO variant (
+            variant_id, allele_id, variant_name, variant_type, dbsnp_id, phenotype_list, gene_symbol,
             assembly, chro, chro_start, chro_stop, ref_allele, alt_allele, cytogenetic)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    """, (variant_id, allele_id, name, allele_type, dbSNP_id, phenotype_list, gene_id, gene_symbol, hgnc_id,
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (variant_id, allele_id, variant_name, variant_type, dbsnp_id, phenotype_list, gene_symbol,
           assembly, chro, chro_start, chro_stop, ref_allele, alt_allele, cytogenetic))
     
-    return cur.lastrowid
+    ventry_id = cur.lastrowid
+
+    if gene_symbol is not None: 
+        cur.execute("""
+                INSERT INTO gene2variant (
+                    ventry_id,
+                    gene_symbol)
+                VALUES(?,?)
+            """, (ventry_id, gene_symbol))
+
+    return ventry_id
 
 
 def insert_clinical_significance(cur, ventry_id, significance):
@@ -60,7 +84,7 @@ def insert_clinical_significance(cur, ventry_id, significance):
     if significance is not None:
         prep_sig = [(ventry_id, sig) for sig in re.split(r"/", significance)]
         cur.executemany("""
-            INSERT INTO clinical_sig(ventry_id, significance) VALUES(?,?)
+            INSERT INTO clinical_sig (ventry_id, significance) VALUES(?,?)
         """, prep_sig)
 
 
@@ -70,16 +94,17 @@ def insert_review_status(cur, ventry_id, status_str):
         prep_status = [(ventry_id, status)
                        for status in re.split(r", ", status_str)]
         cur.executemany("""
-            INSERT INTO review_status(ventry_id, status) VALUES(?,?)
+            INSERT INTO review_status (ventry_id, status) VALUES(?,?)
         """, prep_status)
 
 
-def insert_variant_phenotypes(cur, ventry_id, variant_pheno:str, allele_id, assembly, line):
+def insert_variant_phenotypes(cur, ventry_id, variant_pheno: str, allele_id, assembly, line):
     """Insert variant phenotypes."""
 
     if variant_pheno is not None:
 
-        variant_pheno = variant_pheno.replace("MONDO:MONDO:", "MONDO:") # Improvent
+        variant_pheno = variant_pheno.replace(
+            "MONDO:MONDO:", "MONDO:")  # Improvent
 
         variant_pheno_list = re.split(r"[;|]", variant_pheno)
         prep_pheno = []
@@ -107,12 +132,14 @@ def insert_variant_phenotypes(cur, ventry_id, variant_pheno:str, allele_id, asse
                         f"DEBUG: {allele_id} {assembly} {variant_annot}\n\t{variant_pheno}\n\t{line}", file=sys.stderr)
 
         cur.executemany("""
-            INSERT INTO variant_phenotypes(ventry_id, phen_group_id, phen_ns, phen_id) 
+            INSERT INTO variant_phenotypes (ventry_id, phen_group_id, phen_ns, phen_id) 
             VALUES(?,?,?,?)
         """, prep_pheno)
 
 
 def store_clinvar_file(db, clinvar_file):
+    known_genes = set()
+
     with gzip.open(clinvar_file, "rt", encoding="utf-8") as cf:
 
         header_mapping = None
@@ -132,25 +159,40 @@ def store_clinvar_file(db, clinvar_file):
 
                 if wline.startswith('#'):
                     continue  # skip comment lines
+                  
+                row_values = clean_row_values(re.split(r"\t", wline))
+                
+                ## Genes
+                
+                gene_symbol = row_values[header_mapping["GeneSymbol"]]
+                
+                if gene_symbol not in known_genes:
+                    hgnc_id = row_values[header_mapping["HGNC_ID"]]
+                    gene_id = row_values[header_mapping["GeneID"]]
+                    insert_gene(cur, gene_symbol, gene_id, hgnc_id)
+                    known_genes.add(gene_symbol)
 
-                column_values = clean_column_values(re.split(r"\t", wline))
+                ## Variants
                 ventry_id = insert_variant(
-                    cur, header_mapping, column_values, ref_allele_col, alt_allele_col)
+                    cur, header_mapping, row_values, ref_allele_col, alt_allele_col)
 
-                significance = column_values[header_mapping["ClinicalSignificance"]]
+                ## Significance 
+                significance = row_values[header_mapping["ClinicalSignificance"]]
                 insert_clinical_significance(cur, ventry_id, significance)
-
-                status_str = column_values[header_mapping["ReviewStatus"]]
+                
+                ## Status 
+                status_str = row_values[header_mapping["ReviewStatus"]]
                 insert_review_status(cur, ventry_id, status_str)
 
-                variant_pheno = column_values[header_mapping["PhenotypeIDS"]]
-                allele_id = column_values[header_mapping["AlleleID"]]
-                assembly = column_values[header_mapping["Assembly"]]
-                
+                ## Phenotype 
+                variant_pheno = row_values[header_mapping["PhenotypeIDS"]]
+                allele_id = row_values[header_mapping["AlleleID"]]
+                assembly = row_values[header_mapping["Assembly"]]
                 insert_variant_phenotypes(
                     cur, ventry_id, variant_pheno, allele_id, assembly, line)
 
         cur.close()
+
 
 if __name__ == '__main__':
 

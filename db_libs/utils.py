@@ -2,9 +2,12 @@ import re
 from datetime import datetime
 
 
-def clean_column_values(column_values):
+def none_for_unique(value): 
+    return -1 if value is None else value
+
+def clean_row_values(row_values:list[str]):
     """Replace empty strings or '-' with None."""
-    return [None if not v or v == "-" or v == "na" else v for v in column_values]
+    return [None if not v or v == "-" or v == "na" else v for v in row_values]
 
 
 def is_header_line(line:str, required_columns=["VariationID", "ClinicalSignificance"]):

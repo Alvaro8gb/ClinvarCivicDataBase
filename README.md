@@ -176,8 +176,7 @@ TOP 5:
 
 ```sql
 SELECT 
-	variation_id,
-	gene_id ,
+	variant_id,
 	gene_symbol,
 	chro,
 	chro_start,
@@ -187,15 +186,17 @@ FROM variant
 WHERE 
 	assembly = 'GRCh37' AND
 	phenotype_list LIKE '%Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins%';
-
 ```
-|variation_id|gene_id|gene_symbol|chro|chro_start|chro_stop|phenotype_list|
-|------------|-------|-----------|----|----------|---------|--------------|
-|1290|55687|TRMU|22|46335792|46335792|Deafness, mitochondrial, modifier of&#124;not specified&#124;Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins&#124;not provided&#124;Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins;Aminoglycoside-induced deafness|
-|1291|55687|TRMU|22|46337925|46337925|Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins&#124;not provided&#124;Aminoglycoside-induced deafness&#124;TRMU-related disorder|
-|1293|55687|TRMU|22|46353809|46353809|Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins|
 
 
+|variant_id|gene_symbol|chro|chro_start|chro_stop|phenotype_list|
+|----------|-----------|----|----------|---------|--------------|
+|1290|TRMU|22|46731689|46731689|Deafness, mitochondrial, modifier of&#124;not specified&#124;Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins&#124;not provided&#124;Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins;Aminoglycoside-induced deafness|
+|1291|TRMU|22|46733822|46733822|Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins&#124;not provided&#124;Aminoglycoside-induced deafness&#124;TRMU-related disorder|
+|1293|TRMU|22|46749706|46749706|Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins|
+|1294|TRMU|22|46731663|46731663|Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins|
+|30819|TRMU|22|46749726|46749726|Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins&#124;not provided&#124;Inborn genetic diseases&#124;Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins;Aminoglycoside-induced deafness&#124;Aminoglycoside-induced deafness|
+|137708|TRMU|22|46742350|46742350|not provided&#124;not specified&#124;Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins&#124;Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins;Aminoglycoside-induced deafness|
 
 ### 6. Para aquellas variantes de ClinVar con significancia clínica “Pathogenic” o “Likely pathogenic”, recuperar las coordenadas, el alelo de referencia y el alelo alterado para la hemoglobina (HBB) en el assembly GRCh37.
 
@@ -203,7 +204,6 @@ WHERE
 SELECT 
 	v.variation_id,
 	c.significance,
-	v.gene_id ,
 	v.gene_symbol,
 	v.chro,
 	v.chro_start,
@@ -216,6 +216,14 @@ WHERE
 	v.gene_symbol ='HBB';
 ```
 
+|variant_id|significance|gene_symbol|chro|chro_start|chro_stop|
+|----------|------------|-----------|----|----------|---------|
+|15090|Pathogenic|HBB|11|5246841|5246841|
+|15090|Likely pathogenic|HBB|11|5246841|5246841|
+|15096|Pathogenic|HBB|11|5246837|5246837|
+|15112|Pathogenic|HBB|11|5246836|5246836|
+|15122|Pathogenic|HBB|11|5247865|5247865|
+|15126|Pathogenic|HBB|11|5248233|5248233|
 
 
 ### 7. Calcular el número de variantes del ensamblaje GRCh37 que se encuentren en el cromosoma 13, entre las coordenadas 10,000,000 y 20,000,000 , tanto para ClinVar como para CIViC.
