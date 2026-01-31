@@ -2,16 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import re
-import sys
 import gzip
 
-
-from db_libs.utils_sqlite import open_db
-from db_libs.read_sql import load_clinvar_table_defs
+from db_libs.etl import main
 from db_libs.utils import is_header_line, parse_header, clean_column_values, text2date
 
-
-DDL_TABLE = "schemas/clinvar_submission.sql"
 
 def extract_pmids(text: str):
     pmids = re.findall(r'PMID:\s*(\d+)', text)
@@ -66,7 +61,7 @@ def insert_submission(cur, header_mapping, column_values):
                 """, variants_pmids)
 
 
-def store_clinvar_file(db, clinvar_file):
+def etl(db, clinvar_file):
     with gzip.open(clinvar_file, "rt", encoding="utf-8") as cf:
 
         cur = db.cursor()
@@ -98,24 +93,5 @@ def store_clinvar_file(db, clinvar_file):
 
 if __name__ == '__main__':
 
-    if len(sys.argv) < 3:
-        print("Usage: {0} {{database_file}} {{compressed_clinvar_file}}".format(
-            sys.argv[0]), file=sys.stderr)
-
-        sys.exit(1)
-
-    # Only the first and second parameters are considered
-    db_file = sys.argv[1]
-    clinvar_file = sys.argv[2]
-
-    # Load Tables Schemas
-    clinvar_tables = load_clinvar_table_defs(DDL_TABLE)
-
-    # Create or open the database
-    db = open_db(db_file, clinvar_tables)
-
-    try:
-        # Insert
-        store_clinvar_file(db, clinvar_file)
-    finally:
-        db.close()
+    ddl_table_path = "schemas/clinvar_submission.sql"
+    main(etl, ddl_table_path)

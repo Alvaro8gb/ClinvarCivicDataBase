@@ -1,12 +1,7 @@
 import re
-import sys
 
-
-from db_libs.read_sql import load_clinvar_table_defs
-from db_libs.utils_sqlite import open_db
+from db_libs.etl import main
 from db_libs.utils import clean_row_values, parse_header, none_for_unique
-
-DDL_TABLE = "schemas/civiv_variant.sql"
 
 
 def insert_feature(cur, feature_id: int, header_mapping, row_values):
@@ -55,7 +50,7 @@ def insert_variant(cur, variant_id: int, feature_id: int, header_mapping, row_va
           ensembl_version, assembly))
 
 
-def store_clinvar_file(db, clinvar_file):
+def etl(db, clinvar_file):
 
     known_features = set()
 
@@ -87,24 +82,6 @@ def store_clinvar_file(db, clinvar_file):
 
 
 if __name__ == '__main__':
+    ddl_table_path = "schemas/civiv_variant.sql"
 
-    if len(sys.argv) < 3:
-        print("Usage: {0} {{database_file}} {{compressed_clinvar_file}}".format(
-            sys.argv[0]), file=sys.stderr)
-
-        sys.exit(1)
-
-    db_file = sys.argv[1]
-    clinvar_file = sys.argv[2]
-
-    # Load Tables Schemas
-    clinvar_tables = load_clinvar_table_defs(DDL_TABLE)
-
-    # Create or open the database
-    db = open_db(db_file, clinvar_tables)
-
-    try:
-        # Insert
-        store_clinvar_file(db, clinvar_file)
-    finally:
-        db.close()
+    main(etl, ddl_table_path)

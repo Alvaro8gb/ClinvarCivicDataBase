@@ -1,26 +1,5 @@
 # ClinvarCivicDataBase
 
-
-```bash
-wget https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/archive/variant_summary_2025-01.txt.gz
-wget https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/archive/gene_specific_summary_2025-01.txt.gz
-wget https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/archive/submission_summary_2025-01.txt.gz
-
-
-wget https://civicdb.org/downloads/01-Jan-2026/01-Jan-2026-VariantSummaries.tsv
-```
-
-Clinvar:
-```bash
-python clinvar_variant_parser.py  ./dumps/clinvar_variant.db data/clinvar/variant_summary_2025-01.txt.gz
-python clinvar_gene_parser.py dumps/clinvar_gene.db data/clinvar/gene_specific_summary_2025-01.txt.gz
-
-```
-Civic:
-```bash
-python civic_variant_parser.py dumps/civiv_variant.db data/civic/01-Jan-2026-VariantSummaries.tsv
-```
-
 ## Allele Registry
 
 ### Canonical Allele Identifier

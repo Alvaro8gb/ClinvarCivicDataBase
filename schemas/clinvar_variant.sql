@@ -2,7 +2,7 @@ CREATE TABLE
     IF NOT EXISTS gene (
         gene_symbol TEXT PRIMARY KEY,
         gene_id INTEGER NOT NULL,
-        HGNC_ID TEXT NOT NULL
+        hgnc_id TEXT NOT NULL
     ) STRICT;
 
 CREATE TABLE

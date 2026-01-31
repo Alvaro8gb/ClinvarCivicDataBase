@@ -35,3 +35,5 @@ def text2date(date: str, format="%b %d, %Y"):
         return None
     return datetime.strptime(date.strip(), format).strftime("%Y-%m-%d")
 
+
+

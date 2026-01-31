@@ -2,13 +2,8 @@ import re
 import sys
 import gzip
 
-
-from db_libs.read_sql import load_clinvar_table_defs
-from db_libs.utils_sqlite import open_db
+from db_libs.etl import main
 from db_libs.utils import clean_row_values, none_for_unique
-
-
-DDL_TABLE = "schemas/clinvar_variant.sql"
 
 
 def parse_header(line):
@@ -27,7 +22,7 @@ def parse_header(line):
 
 
 def insert_gene(cur, gene_symbol, gene_id, hgnc_id):
-    if gene_symbol is not None: 
+    if gene_symbol is not None:
 
         hgnc_id = none_for_unique(hgnc_id)
         gene_id = int(none_for_unique(gene_id))
@@ -57,7 +52,7 @@ def insert_variant(cur, header_mapping, row_values, ref_allele_col, alt_allele_c
     ref_allele = row_values[ref_allele_col]
     alt_allele = row_values[alt_allele_col]
     cytogenetic = row_values[header_mapping["Cytogenetic"]]
-    
+
     cur.execute("""
         INSERT INTO variant (
             allele_id, hgvs_id, variant_id, variant_type, dbsnp_id, phenotype_list, gene_symbol,
@@ -65,10 +60,10 @@ def insert_variant(cur, header_mapping, row_values, ref_allele_col, alt_allele_c
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (allele_id, hgvs_id, variant_id, variant_type, dbsnp_id, phenotype_list, gene_symbol,
           assembly, chro, chro_start, chro_stop, ref_allele, alt_allele, cytogenetic))
-    
+
     ventry_id = cur.lastrowid
 
-    if gene_symbol is not None: 
+    if gene_symbol is not None:
         cur.execute("""
                 INSERT INTO gene2variant (
                     ventry_id,
@@ -137,7 +132,7 @@ def insert_variant_phenotypes(cur, ventry_id, variant_pheno: str, allele_id, ass
         """, prep_pheno)
 
 
-def store_clinvar_file(db, clinvar_file):
+def etl(db, clinvar_file):
     known_genes = set()
 
     with gzip.open(clinvar_file, "rt", encoding="utf-8") as cf:
@@ -159,32 +154,32 @@ def store_clinvar_file(db, clinvar_file):
 
                 if wline.startswith('#'):
                     continue  # skip comment lines
-                  
+
                 row_values = clean_row_values(re.split(r"\t", wline))
-                
-                ## Genes
-                
+
+                # Genes
+
                 gene_symbol = row_values[header_mapping["GeneSymbol"]]
-                
+
                 if gene_symbol not in known_genes:
                     hgnc_id = row_values[header_mapping["HGNC_ID"]]
                     gene_id = row_values[header_mapping["GeneID"]]
                     insert_gene(cur, gene_symbol, gene_id, hgnc_id)
                     known_genes.add(gene_symbol)
 
-                ## Variants
+                # Variants
                 ventry_id = insert_variant(
                     cur, header_mapping, row_values, ref_allele_col, alt_allele_col)
 
-                ## Significance 
+                # Significance
                 significance = row_values[header_mapping["ClinicalSignificance"]]
                 insert_clinical_significance(cur, ventry_id, significance)
-                
-                ## Status 
+
+                # Status
                 status_str = row_values[header_mapping["ReviewStatus"]]
                 insert_review_status(cur, ventry_id, status_str)
 
-                ## Phenotype 
+                # Phenotype
                 variant_pheno = row_values[header_mapping["PhenotypeIDS"]]
                 allele_id = row_values[header_mapping["AlleleID"]]
                 assembly = row_values[header_mapping["Assembly"]]
@@ -196,23 +191,6 @@ def store_clinvar_file(db, clinvar_file):
 
 if __name__ == '__main__':
 
-    if len(sys.argv) < 3:
-        print("Usage: {0} {{database_file}} {{compressed_clinvar_file}}".format(
-            sys.argv[0]), file=sys.stderr)
+    ddl_table_path = "schemas/clinvar_variant.sql"
 
-        sys.exit(1)
-
-    db_file = sys.argv[1]
-    clinvar_file = sys.argv[2]
-
-    # Load Tables Schemas
-    clinvar_tables = load_clinvar_table_defs(DDL_TABLE)
-
-    # Create or open the database
-    db = open_db(db_file, clinvar_tables)
-
-    try:
-        # Insert
-        store_clinvar_file(db, clinvar_file)
-    finally:
-        db.close()
+    main(etl, ddl_table_path)
