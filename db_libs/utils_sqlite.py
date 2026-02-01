@@ -6,8 +6,7 @@ import sqlite3
 def open_db(db_file, tables):
     """
         This method creates a SQLITE3 database with the needed
-        tables to store clinvar data, or opens it if it already
-        exists
+        tables or opens it if it already exists
     """
 
     if not os.path.exists(db_file):
@@ -33,9 +32,9 @@ def open_db(db_file, tables):
 
         # And create the tables, in case they were not previously
         # created in a previous use
-
         for table in tables:
             cur.execute(table)
+
     except sqlite3.Error as e:
         print("An error occurred: {}".format(str(e)), file=sys.stderr)
     finally:

@@ -5,7 +5,7 @@ from db_libs.utils import clean_row_values, parse_header
 from db_libs.etl import main
 
 
-def insert_gene(cur, header_mapping, row_values):
+def insert_gene_stats(cur, header_mapping, row_values):
     """Insert a gene row and return the new gene_id."""
     gene_symbol = row_values[header_mapping["Symbol"]]
     gene_id = row_values[header_mapping["GeneID"]]
@@ -51,7 +51,7 @@ def etl(db, clinvar_file):
 
                 row_values = clean_row_values(re.split(r"\t", wline))
 
-                insert_gene(cur, header_mapping, row_values)
+                insert_gene_stats(cur, header_mapping, row_values)
 
         cur.close()
 

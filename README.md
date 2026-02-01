@@ -1,4 +1,5 @@
 # Genomic Variants ETL
+
 ## Allele Registry
 
 ### Canonical Allele Identifier
@@ -73,7 +74,7 @@ WHERE
 
 ```
 
-CLinvar: 4601
+CLinvar: 5,615
 Civic: 0
 
 ### 2. ¿Qué cambio del tipo “single nucleotide variant” es más frecuente, el de una Guanina por una Adenina, o el una Guanina por una Timina? Usad las anotaciones basadas en el ensamblaje GRCh37 para cuantificar y proporcionar los números totales, tanto para ClinVar como para CIViC.
@@ -98,8 +99,18 @@ ORDER BY n_variants DESC;
 
 
 ```
+CLinvar:
+|ref_allele|alt_allele|n_variants|
+|----------|----------|----------|
+|G|A|798290|
+|G|T|232695|
 
+Civic:
 
+|ref_allele|alt_allele|n_variants|
+|----------|----------|----------|
+|G|A|105|
+|G|T|54|
 
 
 ### 3. ¿Cuáles son los tres genes de ClinVar con un mayor número de inserciones, deleciones o indels? Usa el ensamblaje GRCh37 para cuantificar y proporcionar los números totales.
@@ -111,20 +122,21 @@ SELECT
 	COUNT(DISTINCT(variant_id)) as n_variants
 FROM variant
 WHERE assembly = 'GRCh37' AND 
-	type IN (
+	variant_type IN (
       'Indel',
       'Insertion',
       'Deletion'
       )
 GROUP BY gene_symbol
-ORDER BY n_variants DESC;
+ORDER BY n_variants DESC
+LIMIT 3;
 ```
 
-|gene_symbol|freq|
-|-----------|----|
-|BRCA2|3524|
-|BRCA1|2872|
-|NF1|2567|
+|gene_symbol|n_variants|
+|-----------|----------|
+|BRCA2|3788|
+|BRCA1|3034|
+|NF1|2954|
 
 
 ### 4. ¿Cuál es la deleción más común en el cáncer hereditario de mama en CIViC? ¿Y en ClinVar? Por favor, incluye en la respuesta además en qué genoma de referencia, el número de veces que ocurre, el alelo de referencia y el observado.
@@ -136,27 +148,24 @@ https://www.ebi.ac.uk/ols4/ontologies/mondo
 ```sql
 
 SELECT 
-	COUNT(DISTINCT(variant_id)) AS n_variants,
-	v.ref_allele, 
-	v.alt_allele
+    v.ref_allele, 
+    v.alt_allele, 
+    COUNT(DISTINCT(variant_id)) AS n_variants
 FROM variant v
 JOIN variant_phenotypes p ON v.ventry_id = p.ventry_id
 WHERE 
-	v.type = 'Deletion' AND
-	v.assembly = 'GRCh37' AND 
-	p.phen_id = '0016419' AND p.phen_ns = 'MONDO' -- hereditary breast carcinoma 
+    v.variant_type = 'Deletion' AND
+    v.assembly = 'GRCh37' AND 
+    p.phen_id = '0016419' AND p.phen_ns = 'MONDO'
 GROUP BY v.ref_allele, v.alt_allele
-ORDER BY n_variants DESC;
+ORDER BY n_variants DESC
+LIMIT 1; 
 ```
 
-TOP 5:
-|n_variants|ref_allele|alt_allele|
+|ref_allele|alt_allele|n_variants|
 |----------|----------|----------|
-|293|na|na|
-|222|CT|C|
-|186|CA|C|
-|166|AG|A|
-|160|AT|A|
+|CT|C|355|
+
 
 ### 5. Ver el identificador de gen y las coordenadas de las variantes de ClinVar del ensamblaje GRCh38 relacionadas con el fenotipo del Acute infantile liver failure due to synthesis defect of mtDNA-encoded proteins.
 
@@ -189,8 +198,6 @@ WHERE
 ```sql
 SELECT 
 	v.variant_id,
-	c.significance,
-	v.gene_symbol,
 	v.chro,
 	v.chro_start,
 	v.chro_stop
@@ -226,7 +233,8 @@ WHERE
 	chro_stop <= 20000000;
 ```
 
-Clinvar: 32
+Clinvar: 70
+Civic: 0
 
 
 
@@ -245,7 +253,7 @@ WHERE
 
 ```
 
-Clinvar: 3973
+Clinvar: 16733
 
 
 
@@ -270,17 +278,15 @@ JOIN subs.clinvar_submission s
 WHERE 
 	v.assembly = 'GRCh38' AND 
 	v.phenotype_list LIKE '%glioblastoma%'; 
+LIMIT 10;
+
 
 ```
 
 ```sql
 
 SELECT 
-	v.ventry_id,
-    v.variant_id,
-    s.submission_id,
-    p.pmid, 
-    v.phenotype_list
+    p.pmid
 FROM (
     SELECT * FROM variant 
     WHERE assembly = 'GRCh38' AND 
@@ -292,11 +298,14 @@ JOIN subs.variant_pmid p ON s.submission_id = p.submission_id
 ```
 
 
-|ventry_id|variant_id|submission_id|pmid|phenotype_list|
-|---------|----------|-------------|----|--------------|
-|171983|156444|405891|24049096|Glioblastoma multiforme, somatic&#124;Metaphyseal chondromatosis with D-2-hydroxyglutaric aciduria&#124;Glioma susceptibility 1&#124;Enchondromatosis&#124;Neoplasm&#124;Metaphyseal chondromatosis&#124;not provided|
-|849955|555284|1418920|9054948|Ataxia-telangiectasia syndrome&#124;Glioblastoma&#124;not provided&#124;Familial cancer of breast|
-|849955|555284|1418920|23807571|Ataxia-telangiectasia syndrome&#124;Glioblastoma&#124;not provided&#124;Familial cancer of breast|
+|pmid|
+|----|
+|20522432|
+|27666373|
+|29979965|
+|32000721|
+|11370630|
+|24122735|
 
 
 ### 10. Obtener el número de variantes del cromosoma 1 y calcular la frecuencia de mutaciones de este cromosoma, tanto para GRCh37 como para GRCh38. ¿Es esta frecuencia mayor que la del cromosoma 22? ¿Y si lo comparamos con el cromosoma X? 
@@ -337,22 +346,23 @@ python freq_variants.py dumps/clinvar_variant.db
 ```
 
 Variants per chro and assembly
+
 | assembly   | chro   |   n_variants |
 |:-----------|:-------|-------------:|
-| GRCh37     | 1      |       273635 |
-| GRCh37     | 22     |        68638 |
-| GRCh37     | X      |       121626 |
-| GRCh38     | 1      |       269954 |
-| GRCh38     | 22     |        67166 |
-| GRCh38     | X      |       116860 |
+| GRCh37     | 1      |       376941 |
+| GRCh37     | 22     |        91898 |
+| GRCh37     | X      |       186235 |
+| GRCh38     | 1      |       373143 |
+| GRCh38     | 22     |        90386 |
+| GRCh38     | X      |       181254 |
 
 Frequency of mutations
 
 | Chromosome   |   Variants_GRCh37 |   Frequency_GRCh37 |   Variants_GRCh38 |   Frequency_GRCh38 |
 |:-------------|------------------:|-------------------:|------------------:|-------------------:|
-| 1            |            273635 |        0.00109783  |            269954 |        0.00108434  |
-| 22           |             68638 |        0.00133785  |             67166 |        0.00132168  |
-| X            |            121626 |        0.000783317 |            116860 |        0.000748906 |
+| 1            |            376941 |         0.0015123  |            373143 |         0.00149883 |
+| 22           |             91898 |         0.00179122 |             90386 |         0.00177861 |
+| X            |            186235 |         0.00119942 |            181254 |         0.00116158 |
 
 ### Civic
 
@@ -361,6 +371,7 @@ python freq_variants.py dumps/civiv_variant.db
 ```
 
 Variants per chro and assembly
+
 | assembly   | chro   |   n_variants |
 |:-----------|:-------|-------------:|
 | GRCh37     | 1      |           58 |
@@ -368,8 +379,8 @@ Variants per chro and assembly
 | GRCh37     | X      |           22 |
 | GRCh38     | 1      |            1 |
 
-
 Frequency of mutations
+
 | Chromosome   |   Variants_GRCh37 |   Frequency_GRCh37 |   Variants_GRCh38 |   Frequency_GRCh38 |
 |:-------------|------------------:|-------------------:|------------------:|-------------------:|
 | 1            |                58 |        2.32698e-07 |                 1 |        4.01677e-09 |
