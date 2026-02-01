@@ -26,7 +26,6 @@ def insert_gene(cur, header_mapping, row_values):
         gene_symbol, gene_id, total_submissions, total_alleles, submissions_reporting_this_gene,
         alleles_reported_pathogenic, gene_mim_number, number_uncertain, number_with_conflicts
     ))
-    return cur.lastrowid
 
 
 def etl(db, clinvar_file):

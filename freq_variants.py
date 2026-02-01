@@ -20,7 +20,7 @@ QUERY = """
     GROUP BY assembly, chro;
 """
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
 
     if len(sys.argv) < 2:
         print("Usage: {0} {{database_file}}".format(
@@ -32,16 +32,14 @@ if __name__ == '__main__':
     conn = sqlite3.connect(db_path)
 
     df_lengths = pd.DataFrame(CHR_DATA_BP)
-    
+
     print("Chromosome length by assembly")
     print(df_lengths.to_markdown(index=False))
 
-    
     df_freq_variantes = pd.read_sql_query(QUERY, conn)
 
     print("Variants per chro and assembly")
     print(df_freq_variantes.to_markdown(index=False))
-
 
     df_freq_with_lengths = df_freq_variantes.merge(df_lengths, on='chro')
 
@@ -55,13 +53,14 @@ if __name__ == '__main__':
     )
 
     df_freq_pivot = df_freq_with_lengths.pivot(
-        index='chro', 
-        columns='assembly', 
+        index='chro',
+        columns='assembly',
         values=['n_variants', 'freq_GRCh37', 'freq_GRCh38']
     )
 
     # Flatten the multi-level columns
-    df_freq_pivot.columns = ['_'.join(col).strip() for col in df_freq_pivot.columns.values]
+    df_freq_pivot.columns = ['_'.join(col).strip()
+                             for col in df_freq_pivot.columns.values]
 
     # Rename columns for clarity
     df_freq_pivot = df_freq_pivot.rename(columns={
@@ -72,7 +71,8 @@ if __name__ == '__main__':
     })
 
     # Select only the relevant columns and reset index
-    df_freq_pivot = df_freq_pivot[['Variants_GRCh37', 'Frequency_GRCh37', 'Variants_GRCh38', 'Frequency_GRCh38']].reset_index()
+    df_freq_pivot = df_freq_pivot[[
+        'Variants_GRCh37', 'Frequency_GRCh37', 'Variants_GRCh38', 'Frequency_GRCh38']].reset_index()
     df_freq_pivot.rename(columns={'chro': 'Chromosome'}, inplace=True)
 
     print("Frequency of mutations")

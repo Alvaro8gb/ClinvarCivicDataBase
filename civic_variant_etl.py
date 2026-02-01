@@ -24,7 +24,7 @@ def insert_variant(cur, variant_id: int, feature_id: int, header_mapping, row_va
     variant_aliases = row_values[header_mapping["variant_aliases"]]
     variant_groups = row_values[header_mapping["variant_groups"]]
     variant_types = row_values[header_mapping["variant_types"]]
-    caid = row_values[header_mapping["allele_registry_id"]] 
+    caid = row_values[header_mapping["allele_registry_id"]]
     gene_symbol = row_values[header_mapping["gene"]]
     entrez_id = row_values[header_mapping["entrez_id"]]
     chro = none_for_unique(row_values[header_mapping["chromosome"]])
@@ -71,10 +71,10 @@ def etl(db, clinvar_file):
                 feature_id = int(row_values[header_mapping["feature_id"]])
 
                 print("variant_id:", variant_id)
-                if feature_id not in known_features: 
+                if feature_id not in known_features:
                     insert_feature(cur, feature_id, header_mapping, row_values)
                     known_features.add(feature_id)
-            
+
                 insert_variant(cur, variant_id, feature_id,
                                header_mapping, row_values)
 
@@ -83,5 +83,4 @@ def etl(db, clinvar_file):
 
 if __name__ == '__main__':
     ddl_table_path = "schemas/civiv_variant.sql"
-
     main(etl, ddl_table_path)

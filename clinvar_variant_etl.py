@@ -122,7 +122,7 @@ def insert_variant_phenotypes(cur, ventry_id, variant_pheno: str, allele_id, ass
                     phen_ns, phen_id = phen[0:2]
                     prep_pheno.append(
                         (ventry_id, phen_group_id, phen_ns, phen_id))
-                elif variant_annot != "na":
+                else:
                     print(
                         f"DEBUG: {allele_id} {assembly} {variant_annot}\n\t{variant_pheno}\n\t{line}", file=sys.stderr)
 
@@ -190,7 +190,5 @@ def etl(db, clinvar_file):
 
 
 if __name__ == '__main__':
-
     ddl_table_path = "schemas/clinvar_variant.sql"
-
     main(etl, ddl_table_path)

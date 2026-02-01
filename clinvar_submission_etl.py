@@ -5,7 +5,7 @@ import re
 import gzip
 
 from db_libs.etl import main
-from db_libs.utils import is_header_line, parse_header, clean_column_values, text2date
+from db_libs.utils import is_header_line, parse_header, clean_row_values, text2date
 
 
 def extract_pmids(text: str):
@@ -13,25 +13,25 @@ def extract_pmids(text: str):
     return set(pmids)
 
 
-def insert_submission(cur, header_mapping, column_values):
+def insert_submission(cur, header_mapping, row_values):
     """Insert a submission row and return the new id."""
 
-    variant_id = int(column_values[header_mapping["VariationID"]])
-    clinical_significance = column_values[header_mapping["ClinicalSignificance"]]
+    variant_id = int(row_values[header_mapping["VariationID"]])
+    clinical_significance = row_values[header_mapping["ClinicalSignificance"]]
     date_last_evaluated = text2date(
-        column_values[header_mapping["DateLastEvaluated"]])
-    description = column_values[header_mapping["Description"]]
-    submitted_phenotype_info = column_values[header_mapping["SubmittedPhenotypeInfo"]]
-    reported_phenotype_info = column_values[header_mapping["ReportedPhenotypeInfo"]]
-    review_status = column_values[header_mapping["ReviewStatus"]]
-    collection_method = column_values[header_mapping["CollectionMethod"]]
-    origin_counts = column_values[header_mapping["OriginCounts"]]
-    submitter = column_values[header_mapping["Submitter"]]
-    scv = column_values[header_mapping["SCV"]]
-    submitted_gene_symbol = column_values[header_mapping["SubmittedGeneSymbol"]]
-    explanation_of_interpretation = column_values[header_mapping["ExplanationOfInterpretation"]]
-    somatic_clinical_impact = column_values[header_mapping["SomaticClinicalImpact"]]
-    oncogenicity = column_values[header_mapping["Oncogenicity"]]
+        row_values[header_mapping["DateLastEvaluated"]])
+    description = row_values[header_mapping["Description"]]
+    submitted_phenotype_info = row_values[header_mapping["SubmittedPhenotypeInfo"]]
+    reported_phenotype_info = row_values[header_mapping["ReportedPhenotypeInfo"]]
+    review_status = row_values[header_mapping["ReviewStatus"]]
+    collection_method = row_values[header_mapping["CollectionMethod"]]
+    origin_counts = row_values[header_mapping["OriginCounts"]]
+    submitter = row_values[header_mapping["Submitter"]]
+    scv = row_values[header_mapping["SCV"]]
+    submitted_gene_symbol = row_values[header_mapping["SubmittedGeneSymbol"]]
+    explanation_of_interpretation = row_values[header_mapping["ExplanationOfInterpretation"]]
+    somatic_clinical_impact = row_values[header_mapping["SomaticClinicalImpact"]]
+    oncogenicity = row_values[header_mapping["Oncogenicity"]]
 
     cur.execute("""
         INSERT INTO clinvar_submission (
@@ -84,9 +84,9 @@ def etl(db, clinvar_file):
                 if i % 100_000 == 0:
                     print(f"Processed {i} lines...")
 
-                column_values = clean_column_values(re.split(r"\t", wline))
+                row_values = clean_row_values(re.split(r"\t", wline))
 
-                insert_submission(cur, header_mapping, column_values)
+                insert_submission(cur, header_mapping, row_values)
 
         cur.close()
 

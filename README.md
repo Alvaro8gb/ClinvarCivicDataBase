@@ -1,4 +1,4 @@
-# Ggenomic Variants ETL
+# Genomic Variants ETL
 ## Allele Registry
 
 ### Canonical Allele Identifier
@@ -78,49 +78,29 @@ Civic: 0
 
 ### 2. ¿Qué cambio del tipo “single nucleotide variant” es más frecuente, el de una Guanina por una Adenina, o el una Guanina por una Timina? Usad las anotaciones basadas en el ensamblaje GRCh37 para cuantificar y proporcionar los números totales, tanto para ClinVar como para CIViC.
 
-#### Clinvar
-
 
 ```sql
 
 SELECT 
-	ref_allele,
-	alt_allele,
-	COUNT(variant_id) as n_variants
+    ref_allele,
+    alt_allele,
+    COUNT(variant_id) AS n_variants
 FROM variant
-WHERE assembly = 'GRCh37' AND type = 'single nucleotide variant'
-GROUP BY ref_allele, alt_allele
-ORDER BY n_variants DESC;
-```
-|ref_allele|alt_allele|freq|
-|----------|----------|----|
-|C|T|615502|
-|G|A|613361|
-|A|G|305691|
-
-
-
-#### Civic 
-
-```sql
-
-SELECT 
-	ref_allele, 
-	alt_allele, 
-	COUNT(variant_id) as n_variants
-FROM variant
-WHERE
-	assembly = 'GRCh37' AND
-	variant_types LIKE "%SNP%" OR
-	variant_types LIKE "%missense_variant%" OR 
-	variant_types LIKE "%synonymous_variant%" OR 
-	variant_types LIKE "%stop_gained%" OR
-	variant_types LIKE "%stop_lost%" OR
-	variant_types LIKE "%start_lost%"
+WHERE 
+    assembly = 'GRCh37' 
+    -- AND variant_type = 'single nucleotide variant' 
+    AND (
+        (ref_allele = 'G' AND alt_allele = 'A') OR
+        (ref_allele = 'G' AND alt_allele = 'T')
+    )
 GROUP BY ref_allele, alt_allele
 ORDER BY n_variants DESC;
 
+
 ```
+
+
+
 
 ### 3. ¿Cuáles son los tres genes de ClinVar con un mayor número de inserciones, deleciones o indels? Usa el ensamblaje GRCh37 para cuantificar y proporcionar los números totales.
 
@@ -208,7 +188,7 @@ WHERE
 
 ```sql
 SELECT 
-	v.variation_id,
+	v.variant_id,
 	c.significance,
 	v.gene_symbol,
 	v.chro,
