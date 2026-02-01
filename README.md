@@ -1,5 +1,4 @@
-# ClinvarCivicDataBase
-
+# Ggenomic Variants ETL
 ## Allele Registry
 
 ### Canonical Allele Identifier
