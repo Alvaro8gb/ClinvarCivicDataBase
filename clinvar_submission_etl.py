@@ -54,7 +54,7 @@ def insert_submission(cur, header_mapping, row_values):
 
         if pmids:
             cur.executemany("""
-                    INSERT INTO variant_pmid (
+                    INSERT INTO submission_pmid (
                         submission_id, pmid
                     ) VALUES (?, ?)
                 """, [ (submission_id, pmid) for pmid in pmids])

@@ -19,8 +19,12 @@ CREATE TABLE
     );
 
 CREATE TABLE
-    variant_pmid (
+    submission_pmid (
         submission_id INTEGER,
         pmid INTEGER,
         FOREIGN KEY (submission_id) REFERENCES submission (submission_id) ON DELETE CASCADE ON UPDATE CASCADE
     );
+
+
+CREATE INDEX idx_submission_id ON submission (submission_id);
+

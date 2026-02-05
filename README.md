@@ -148,17 +148,21 @@ https://www.ebi.ac.uk/ols4/ontologies/mondo
 'hereditary breast carcinoma': https://www.ebi.ac.uk/ols4/ontologies/mondo/classes/http%253A%252F%252Fpurl.obolibrary.org%252Fobo%252FMONDO_0016419
 
 ```sql
-
 SELECT 
     v.ref_allele, 
     v.alt_allele, 
     COUNT(DISTINCT(variant_id)) AS n_variants
 FROM variant v
-JOIN variant_phenotypes p ON v.ventry_id = p.ventry_id
+JOIN variant_phenotypes vp ON v.ventry_id = vp.ventry_id
 WHERE 
     v.variant_type = 'Deletion' AND
-    v.assembly = 'GRCh37' AND 
-    p.phen_id = '0016419' AND p.phen_ns = 'MONDO'
+    v.assembly = 'GRCh37' 
+    AND (
+        (vp.phen_ns = 'Orphanet' AND vp.phen_id = '227535')
+        OR (vp.phen_ns = 'MONDO' AND vp.phen_id = '0016419')
+        OR (vp.phen_ns = 'OMIM' AND vp.phen_id = '114480')
+        OR (vp.phen_ns = 'MedGen' AND vp.phen_id = '87542')
+	) 
 GROUP BY v.ref_allele, v.alt_allele
 ORDER BY n_variants DESC
 LIMIT 1; 
@@ -265,49 +269,46 @@ Clinvar: 16733
 
 ATTACH DATABASE 'clinvar_submission.db' as subs;
 
+```
+
+```sql 
+
 
 SELECT 
-    v.ventry_id,
-    v.variant_id ,
-    s.submission_id,
-    p.pmid, 
-    v.phenotype_list
-FROM variant v
-JOIN subs.clinvar_submission s 
-    ON v.variant_id = s.variant_id 
- JOIN subs.variant_pmid p
-    ON s.submission_id = p.submission_id 
-WHERE 
-	v.assembly = 'GRCh38' AND 
-	v.phenotype_list LIKE '%glioblastoma%'; 
-LIMIT 10;
-
+    DISTINCT(sp.pmid)
+FROM (
+    SELECT DISTINCT(variant_id)
+    FROM variant 
+    WHERE 
+        assembly = 'GRCh38' AND 
+        phenotype_list LIKE '%glioblastoma%'
+) v
+JOIN subs.submission s ON v.variant_id = s.variant_id 
+JOIN subs.submission_pmid sp ON s.submission_id = sp.submission_id; 
 
 ```
 
 ```sql
 
 SELECT 
-    p.pmid
+    DISTINCT(sp.pmid)
 FROM (
-    SELECT * FROM variant 
-    WHERE assembly = 'GRCh38' AND 
-    phenotype_list LIKE '%glioblastoma%'
-    LIMIT 1000
-) v
-JOIN subs.clinvar_submission s ON v.variant_id = s.variant_id 
-JOIN subs.variant_pmid p ON s.submission_id = p.submission_id
+    SELECT DISTINCT(v.variant_id)
+	FROM variant_phenotypes vp
+	JOIN variant v ON v.ventry_id = vp.ventry_id
+	WHERE
+	    v.assembly = 'GRCh38'
+	    AND (
+	        (vp.phen_ns = 'Orphanet' AND vp.phen_id = '360')
+	        OR (vp.phen_ns = 'MONDO' AND vp.phen_id = '0018177')
+	        OR (vp.phen_ns = 'OMIM' AND vp.phen_id = '137800')
+	        OR (vp.phen_ns = 'MedGen' AND vp.phen_id = '42228')
+	        OR (vp.phen_ns = 'MeSH' AND vp.phen_id = 'D005909')
+	    ) 
+) v 
+JOIN subs.submission s ON v.variant_id = s.variant_id 
+JOIN subs.submission_pmid sp ON s.submission_id = sp.submission_id; 
 ```
-
-
-|pmid|
-|----|
-|20522432|
-|27666373|
-|29979965|
-|32000721|
-|11370630|
-|24122735|
 
 
 ### 10. Obtener el número de variantes del cromosoma 1 y calcular la frecuencia de mutaciones de este cromosoma, tanto para GRCh37 como para GRCh38. ¿Es esta frecuencia mayor que la del cromosoma 22? ¿Y si lo comparamos con el cromosoma X? 
