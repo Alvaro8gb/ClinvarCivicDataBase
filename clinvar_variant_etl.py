@@ -150,7 +150,6 @@ def etl(db, clinvar_file):
                 row_values = clean_row_values(re.split(r"\t", wline))
 
                 # Genes
-
                 gene_symbol = row_values[header_mapping["GeneSymbol"]]
 
                 if gene_symbol not in known_genes:

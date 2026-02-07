@@ -26,6 +26,8 @@ files_clinvar=(
 for file in "${files_clinvar[@]}"; do
     echo "DEBUG: Intentando descargar: $CLINVAR_URL/$file"
     wget -nc -P "$DATA_PATH_CLINVAR" "$CLINVAR_URL/$file"
+    hash=$(md5sum $DATA_PATH_CLINVAR/$file | awk '{ print $1 }')
+    echo "MD5:  $hash"
 done
 
 echo "---"
@@ -39,3 +41,6 @@ CIVIC_FULL_URL="$CIVIC_URL/$DATE_CIVIC/$CIVIC_FILE"
 
 echo "DEBUG: Descargando CIViC desde: $CIVIC_FULL_URL"
 wget -nc -P "$DATA_PATH_CIVIC" "$CIVIC_FULL_URL"
+
+hash=$(md5sum $DATA_PATH_CIVIC/$CIVIC_FILE | awk '{ print $1 }')
+echo "MD5:  $hash"
