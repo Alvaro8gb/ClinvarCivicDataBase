@@ -80,7 +80,6 @@ def etl(db, file):
 
         cur.close()
 
-
 if __name__ == '__main__':
     ddl_table_path = "schemas/civic/civiv_variant.sql"
     main(etl, ddl_table_path)
